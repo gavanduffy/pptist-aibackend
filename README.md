@@ -1,179 +1,182 @@
 # PPTist AI Backend
 
-本项目为基于https://github.com/pipipi-pikachu/PPTist/issues/354#issuecomment-2863517189回答制作的ai生成后端，支持使用自定义url和模型。
+This project is an AI generation backend based on [this GitHub issue response](https://github.com/pipipi-pikachu/PPTist/issues/354#issuecomment-2863517189), supporting custom URLs and models.
 
-基于 LangChain 和 FastAPI 的 AI 驱动 PPT 生成后端服务。
+AI-powered PPT generation backend service based on LangChain and FastAPI.
 
-用于[PPTist](https://github.com/pipipi-pikachu/PPTist)的ai后端生成ppt使用
+Used as an AI backend for generating PPT with [PPTist](https://github.com/pipipi-pikachu/PPTist)
 
-对应pptist的分支[57e21c3b4c28ce4195fbb20815f432d596c0e5c8](https://github.com/pipipi-pikachu/PPTist/tree/b3bbb75ea467690f0c71a4b6319720959cfdc84f)
+Compatible with PPTist branch [57e21c3b4c28ce4195fbb20815f432d596c0e5c8](https://github.com/pipipi-pikachu/PPTist/tree/b3bbb75ea467690f0c71a4b6319720959cfdc84f)
 
-请使用对应版本的的pptist使用该后端
+Please use the corresponding version of PPTist with this backend.
 
-## 功能特性
+## Features
 
-- 🤖 **AI 大纲生成**: 根据主题自动生成 PPT 大纲结构
-- 🎨 **智能内容生成**: 基于大纲生成完整的 PPT 页面内容
-- 🔄 **流式响应**: 支持实时流式数据传输
-- 🌐 **RESTful API**: 标准的 HTTP API 接口
-- 📚 **自动文档**: 自动生成 API 文档
+- 🤖 **AI Outline Generation**: Automatically generates PPT outline structure based on topics
+- 🎨 **Intelligent Content Generation**: Generates complete PPT page content based on outline
+- 🔄 **Streaming Response**: Supports real-time streaming data transmission
+- 🌐 **RESTful API**: Standard HTTP API interface
+- 📚 **Automatic Documentation**: Automatically generated API documentation
+- 🔌 **OpenRouter Integration**: Configured to use OpenRouter free models by default
+- 📝 **External Prompts**: Prompts stored in external files for easy customization
 
-## 技术栈
+## Tech Stack
 
-- **FastAPI**: 现代高性能 Web 框架
-- **LangChain**: AI 应用开发框架
-- **OpenAI**: GPT 模型支持
-- **Pydantic**: 数据验证和序列化
-- **uv**: 极速 Python 包管理器
+- **FastAPI**: Modern high-performance Web framework
+- **LangChain**: AI application development framework
+- **OpenRouter**: Access to multiple AI models through a unified API
+- **Pydantic**: Data validation and serialization
+- **uv**: Ultra-fast Python package manager
 
-## 快速开始
+## Quick Start
 
-### 1. 环境准备
+### 1. Environment Setup
 
-确保您的系统已安装 Python 3.13 或更高版本，并安装 [uv](https://docs.astral.sh/uv/)。
+Ensure your system has Python 3.13 or higher installed, and install [uv](https://docs.astral.sh/uv/).
 
-#### 安装 uv
+#### Install uv
 
 ```bash
-# 使用 pip 安装
+# Install using pip
 pip install uv
 
-# 或使用 curl (Linux/macOS)
+# Or using curl (Linux/macOS)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 或使用 PowerShell (Windows)
+# Or using PowerShell (Windows)
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-### 2. 安装依赖
+### 2. Install Dependencies
 
-使用 uv 安装项目依赖：
+Install project dependencies using uv:
 ```bash
 uv sync
 ```
 
-### 3. 配置环境变量
+### 3. Configure Environment Variables
 
-复制环境变量模板：
+Copy the environment variable template:
 ```bash
 cp .env.example .env
 ```
 
-编辑 `.env` 文件，设置您的 API 配置：
+Edit the `.env` file and set your API configuration:
 ```bash
-# OpenAI API 配置
-OPENAI_API_KEY=your-openai-api-key-here
-OPENAI_BASE_URL=https://api.openai.com/v1
+# OpenRouter API Configuration
+OPENAI_API_KEY=your-openrouter-api-key-here
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
 
-# AI 模型配置
-DEFAULT_MODEL=gpt-4o-mini
+# AI Model Configuration (using OpenRouter free models)
+# Available free models: google/gemma-2-9b-it:free, meta-llama/llama-3.2-3b-instruct:free, etc.
+DEFAULT_MODEL=google/gemma-2-9b-it:free
 DEFAULT_TEMPERATURE=0.7
 
-# 服务器配置
+# Server Configuration
 HOST=0.0.0.0
 PORT=8000
 DEBUG=false
 ```
 
-### 4. 启动服务
+**Note**: Get your free OpenRouter API key at https://openrouter.ai/
 
-使用 uv 启动服务：
+### 4. Start the Service
+
+Start the service using uv:
 ```bash
 uv run main.py
 ```
 
-或者使用 uvicorn：
+Or use uvicorn:
 ```bash
 uv run uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-服务将在 http://localhost:8000 启动。
+The service will start at http://localhost:8000
 
-### 5. 访问 API 文档
+### 5. Access API Documentation
 
-打开浏览器访问 http://localhost:8000/docs 查看自动生成的 API 文档。
+Open your browser and visit http://localhost:8000/docs to view the automatically generated API documentation.
 
-### 6.修改pptist代码
+### 6. Modify PPTist Code
 
 ```bash
-# 拉取源代码
+# Clone the source code
 git clone https://github.com/pipipi-pikachu/PPTist.git
 
-# 切换分支
-git check 57e21c3b4c28ce4195fbb20815f432d596c0e5c8
+# Switch to the compatible branch
+git checkout 57e21c3b4c28ce4195fbb20815f432d596c0e5c8
 ```
 
-修改服务器地址：
+Modify the server address:
 
-+ 在`PPTist\src\services\index.ts`中修改`SERVER_URL`变量为本服务的地址
-+ 在`src\views\Editor\AIPPTDialog.vue`中，59行修改Select标签中的可选模型选项，145行的`const model = ref('GLM-4-Flash')`改为默认的模型
++ In `PPTist\src\services\index.ts`, modify the `SERVER_URL` variable to the address of this service
++ In `src\views\Editor\AIPPTDialog.vue`, line 59, modify the model options in the Select tag, and on line 145, change `const model = ref('GLM-4-Flash')` to the default model
 
-### 7.离线化以及增加自己的模板（可选）
+### 7. Offline Usage and Custom Templates (Optional)
 
-为了在离线环境下使用ppt生成，以及放置自己制作的模板。
+For offline PPT generation and using your own templates:
 
-项目提供了将模板内的图片转换为base64的文件（原文件的模板中使用的是url的地址）
+The project provides functionality to convert template images to base64 (original templates use URL addresses).
 
-制作模板过程参考：https://github.com/pipipi-pikachu/PPTist/blob/master/doc/AIPPT.md
+Template creation process reference: https://github.com/pipipi-pikachu/PPTist/blob/master/doc/AIPPT.md
 
-制作的模板json文件放在项目下的`template`文件夹中
+Place created template JSON files in the `template` folder under the project.
 
-ppist源码需要修改：
+PPTist source code modifications needed:
 
-+ 在`PPTist\src\services\index.ts`中修改`ASSET_URL`变量为本服务的地址
-+ 在`src\store\slides.ts`中，55行的`templates`列表中增加自己的模板，并注意修改选择模板时的图片地址（可以在这里转换https://tool.chinaz.com/tools/imgtobase）
++ In `PPTist\src\services\index.ts`, modify the `ASSET_URL` variable to the address of this service
++ In `src\store\slides.ts`, line 55, add your template to the `templates` list, and note to modify the image address when selecting templates (you can convert here: https://tool.chinaz.com/tools/imgtobase)
 
+## API Endpoints
 
-
-## API 接口
-
-### 健康检查
+### Health Check
 ```http
 GET /health
 ```
 
-### 生成 PPT 大纲
+### Generate PPT Outline
 ```http
 POST /tools/aippt_outline
 Content-Type: application/json
 
 {
-  "model": "gpt-4o-mini",
-  "language": "中文",
-  "require": "人工智能在教育领域的应用",
+  "model": "google/gemma-2-9b-it:free",
+  "language": "English",
+  "content": "Artificial Intelligence applications in education",
   "stream": true
 }
 ```
 
-### 生成 PPT 内容
+### Generate PPT Content
 ```http
 POST /tools/aippt
 Content-Type: application/json
 
 {
-  "model": "gpt-4o-mini",
-  "language": "中文",
-  "content": "# PPT标题\n## 章节1\n### 小节1\n- 内容1",
+  "model": "google/gemma-2-9b-it:free",
+  "language": "English",
+  "content": "# PPT Title\n## Chapter 1\n### Section 1\n- Content 1",
   "stream": true
 }
 ```
 
-## 使用示例
+## Usage Examples
 
-### Python 客户端示例
+### Python Client Example
 
 ```python
 import requests
 import json
 
-# 生成大纲
+# Generate outline
 def generate_outline():
     response = requests.post(
         "http://localhost:8000/tools/aippt_outline",
         json={
-            "model": "gpt-4o-mini",
-            "language": "中文",
-            "require": "机器学习基础知识",
+            "model": "google/gemma-2-9b-it:free",
+            "language": "English",
+            "content": "Machine Learning Fundamentals",
             "stream": True
         },
         stream=True
@@ -183,13 +186,13 @@ def generate_outline():
         if chunk:
             print(chunk, end='')
 
-# 生成PPT内容
+# Generate PPT content
 def generate_content(outline):
     response = requests.post(
         "http://localhost:8000/tools/aippt",
         json={
-            "model": "gpt-4o-mini",
-            "language": "中文",
+            "model": "google/gemma-2-9b-it:free",
+            "language": "English",
             "content": outline,
             "stream": True
         },
@@ -202,115 +205,141 @@ def generate_content(outline):
             print(json.dumps(page_data, ensure_ascii=False, indent=2))
 ```
 
-### 测试脚本
+### Test Script
 
-运行提供的测试脚本：
+Run the provided test script:
 ```bash
 uv run test_api.py
 ```
 
-## PPT 页面类型
+## PPT Page Types
 
-生成的 PPT 内容支持以下页面类型：
+Generated PPT content supports the following page types:
 
-- **封面页 (cover)**: 包含标题和副标题
-- **目录页 (contents)**: 包含章节列表
-- **过渡页 (transition)**: 章节间的过渡页面
-- **内容页 (content)**: 具体的内容页面
-- **结束页 (end)**: PPT 结束页
+- **Cover page (cover)**: Contains title and subtitle
+- **Contents page (contents)**: Contains chapter list
+- **Transition page (transition)**: Transition pages between chapters
+- **Content page (content)**: Specific content pages
+- **End page (end)**: PPT ending page
 
-## 输出格式
+## Output Format
 
-### 大纲格式
+### Outline Format
 ```markdown
-# PPT标题
-## 章的名字
-### 节的名字
-- 内容1
-- 内容2
-- 内容3
+# PPT Title
+## Chapter Name
+### Section Name
+- Content 1
+- Content 2
+- Content 3
 ```
 
-### 页面内容格式
+### Page Content Format
 ```json
-{"type": "cover", "data": {"title": "标题", "text": "副标题"}}
-{"type": "contents", "data": {"items": ["章节1", "章节2"]}}
-{"type": "content", "data": {"title": "标题", "items": [{"title": "小标题", "text": "内容"}]}}
+{"type": "cover", "data": {"title": "Title", "text": "Subtitle"}}
+{"type": "contents", "data": {"items": ["Chapter 1", "Chapter 2"]}}
+{"type": "content", "data": {"title": "Title", "items": [{"title": "Subtitle", "text": "Content"}]}}
 ```
 
-## 配置说明
+## Configuration
 
-### 支持的模型
+### Supported Models
 
-- `gpt-4o`: OpenAI GPT-4 Omni 模型
-- `gpt-4o-mini`: OpenAI GPT-4 Omni Mini 模型（默认）
-- 其他兼容 OpenAI API 的模型
+This project is configured to use **OpenRouter** which provides access to multiple AI models. Free models include:
 
-### 环境变量
+- `google/gemma-2-9b-it:free`: Google Gemma 2 9B (default)
+- `meta-llama/llama-3.2-3b-instruct:free`: Meta Llama 3.2 3B
+- `meta-llama/llama-3.2-1b-instruct:free`: Meta Llama 3.2 1B
+- `nousresearch/hermes-3-llama-3.1-405b:free`: Hermes 3 Llama 3.1 405B
+- `microsoft/phi-3-mini-128k-instruct:free`: Microsoft Phi-3 Mini
+- `microsoft/phi-3-medium-128k-instruct:free`: Microsoft Phi-3 Medium
+- `google/gemma-7b-it:free`: Google Gemma 7B
 
-| 变量名 | 说明 | 默认值 |
+You can also use any other model available on OpenRouter by setting the model name in the request or in the `DEFAULT_MODEL` environment variable.
+
+For a full list of available models, visit: https://openrouter.ai/models
+
+### Environment Variables
+
+| Variable Name | Description | Default Value |
 |--------|------|--------|
-| `OPENAI_API_KEY` | OpenAI API 密钥 | 必填 |
-| `OPENAI_BASE_URL` | API 基础URL | https://api.openai.com/v1 |
-| `DEFAULT_MODEL` | 默认使用的 AI 模型 | gpt-4o-mini |
-| `DEFAULT_TEMPERATURE` | 模型创造性参数 | 0.7 |
-| `HOST` | 服务器监听地址 | 0.0.0.0 |
-| `PORT` | 服务器端口 | 8000 |
-| `DEBUG` | 调试模式开关 | false |
+| `OPENAI_API_KEY` | OpenRouter API key | Required |
+| `OPENAI_BASE_URL` | API base URL | https://openrouter.ai/api/v1 |
+| `DEFAULT_MODEL` | Default AI model to use | google/gemma-2-9b-it:free |
+| `DEFAULT_TEMPERATURE` | Model creativity parameter | 0.7 |
+| `HOST` | Server listening address | 0.0.0.0 |
+| `PORT` | Server port | 8000 |
+| `DEBUG` | Debug mode switch | false |
 
-## 错误处理
+### Customizing Prompts
 
-API 会返回相应的 HTTP 状态码和错误信息：
+Prompts are stored in external text files in the `prompts/` directory and can be edited without modifying the codebase:
 
-- `200`: 请求成功
-- `400`: 请求参数错误
-- `500`: 服务器内部错误
+- `prompts/outline.txt`: Template for generating PPT outlines
+- `prompts/cover_contents.txt`: Template for generating cover and contents pages
+- `prompts/section_content.txt`: Template for generating section content pages
 
-流式响应中的错误会以文本形式返回。
+You can customize these prompts to adjust the AI's behavior and output format.
 
-## 开发指南
+## Error Handling
 
-### 项目结构
+The API returns appropriate HTTP status codes and error messages:
+
+- `200`: Request successful
+- `400`: Request parameter error
+- `422`: Validation error
+- `500`: Internal server error
+
+Errors in streaming responses are returned in text format.
+
+## Development Guide
+
+### Project Structure
 
 ```
 pptist-aibackend/
-├── main.py              # 主应用文件
-├── test_api.py          # API 测试脚本
-├── pyproject.toml       # 项目配置和依赖
-├── .python-version      # Python 版本锁定
-├── .env.example         # 环境变量模板
-└── README.md           # 说明文档
+├── main.py              # Main application file
+├── config.py            # Configuration management
+├── test_api.py          # API test script
+├── prompts/             # Prompt template files
+│   ├── outline.txt
+│   ├── cover_contents.txt
+│   └── section_content.txt
+├── template/            # PPT template files
+├── pyproject.toml       # Project configuration and dependencies
+├── .python-version      # Python version lock
+├── .env.example         # Environment variable template
+└── README.md            # Documentation
 ```
 
-### 扩展功能
+### Extending Functionality
 
-您可以通过修改 `main.py` 中的模板和链来自定义 AI 行为：
+You can customize AI behavior by:
 
-1. 修改 `outline_template` 来调整大纲生成格式
-2. 修改 `ppt_content_template` 来调整内容生成格式
-3. 调整 `temperature` 参数来控制输出的创造性
+1. Modifying prompt templates in the `prompts/` directory to adjust generation format
+2. Adjusting the `temperature` parameter to control output creativity
+3. Switching to different OpenRouter models based on your needs
+4. Adding new prompt templates for additional content types
 
-## 许可证
+## License
 
-本项目采用 MIT 许可证。
+This project is licensed under the MIT License.
 
-## 贡献
+## Contributing
 
-欢迎提交 Issue 和 Pull Request 来改进这个项目。
+Contributions via Issues and Pull Requests are welcome to improve this project.
 
-## 支持
+## Support
 
-如果您在使用过程中遇到问题，请：
+If you encounter issues while using this project:
 
-1. 检查 API Key 是否正确设置
-2. 确认网络连接正常
-3. 查看服务器日志获取详细错误信息
-4. 提交 Issue 寻求帮助
-
-
+1. Check if the API Key is correctly set
+2. Confirm network connection is normal
+3. View server logs for detailed error information
+4. Submit an Issue for help
 
 ## Reference
 
-https://github.com/pipipi-pikachu/PPTist/issues/354#issuecomment-2863517189
-
-https://github.com/pipipi-pikachu/PPTist/issues/354
+- Original discussion: https://github.com/pipipi-pikachu/PPTist/issues/354#issuecomment-2863517189
+- PPTist project: https://github.com/pipipi-pikachu/PPTist
+- OpenRouter: https://openrouter.ai/

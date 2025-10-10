@@ -263,7 +263,7 @@ async def generate_ppt_content_stream(request: PPTContentRequest):
     # 解析大纲
     try:
         outline_data = parse_outline(request.content)
-        logger.info(f"📄 Successfully parsed outline: title={outline_data[\'title\']}, chapters={len(outline_data[\'chapters\'])}")
+        logger.info(f"📄 Successfully parsed outline: title={outline_data['title']}, chapters={len(outline_data['chapters'])}")
     except Exception as e:
         logger.error(f"Failed to parse outline: {str(e)}")
         raise HTTPException(status_code=400, detail="Failed to parse outline format")
@@ -308,7 +308,7 @@ async def generate_ppt_content_stream(request: PPTContentRequest):
             
             # 第二步：为每个章节生成过渡页和内容页
             for chapter_idx, chapter in enumerate(outline_data['chapters']):
-                logger.info(f"📖 Starting chapter {chapter_idx + 1} generation: {chapter[\'title\']}")
+                logger.info(f"📖 Starting chapter {chapter_idx + 1} generation: {chapter['title']}")
                 
                 # 准备章节内容字符串
                 section_content = f"## {chapter['title']}\n"
