@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PPTist AI Backend API 测试脚本
+PPTist AI Backend API Test Script
 """
 import requests
 import json
@@ -9,28 +9,28 @@ import time
 BASE_URL = "http://localhost:8000"
 
 def test_health():
-    """测试健康检查端点"""
-    print("🔍 测试健康检查...")
+    """Test health check endpoint"""
+    print("🔍 Testing health check...")
     try:
         response = requests.get(f"{BASE_URL}/health")
         if response.status_code == 200:
-            print("✅ 健康检查通过")
-            print(f"响应: {response.json()}")
+            print("✅ Health check passed")
+            print(f"Response: {response.json()}")
         else:
-            print(f"❌ 健康检查失败: {response.status_code}")
+            print(f"❌ Health check failed: {response.status_code}")
     except Exception as e:
-        print(f"❌ 连接失败: {e}")
+        print(f"❌ Connection failed: {e}")
         return False
     return True
 
 def test_ppt_outline():
-    """测试PPT大纲生成"""
-    print("\n📝 测试PPT大纲生成...")
+    """Test PPT outline generation"""
+    print("\n📝 Testing PPT outline generation...")
     
     data = {
-        "model": "doubao-1-5-pro-32k-250115",
-        "language": "中文",
-        "content": "人工智能在教育领域的应用",
+        "model": "google/gemma-2-9b-it:free",
+        "language": "English",
+        "content": "Artificial Intelligence applications in education",
         "stream": True
     }
     
@@ -42,8 +42,8 @@ def test_ppt_outline():
         )
         
         if response.status_code == 200:
-            print("✅ 大纲生成请求成功")
-            print("📄 生成的大纲内容:")
+            print("✅ Outline generation request successful")
+            print("📄 Generated outline content:")
             print("-" * 50)
             
             for chunk in response.iter_content(chunk_size=1024, decode_unicode=True):
@@ -51,36 +51,36 @@ def test_ppt_outline():
                     print(chunk, end='')
             print("\n" + "-" * 50)
         else:
-            print(f"❌ 大纲生成失败: {response.status_code}")
-            print(f"错误信息: {response.text}")
+            print(f"❌ Outline generation failed: {response.status_code}")
+            print(f"Error message: {response.text}")
             
     except Exception as e:
-        print(f"❌ 请求失败: {e}")
+        print(f"❌ Request failed: {e}")
 
 def test_ppt_content():
-    """测试PPT内容生成"""
-    print("\n🎨 测试PPT内容生成...")
+    """Test PPT content generation"""
+    print("\n🎨 Testing PPT content generation...")
     
-    # 使用示例大纲
-    sample_outline = """# 人工智能在教育领域的应用
-## 人工智能教育概述
-### AI教育的定义与意义
-- 人工智能技术在教育中的应用
-- 提升教学效果和学习体验
-- 推动教育现代化发展
-### AI教育的发展历程
-- 早期探索阶段
-- 技术突破期
-- 规模化应用期
-## 具体应用场景
-### 个性化学习
-- 智能推荐学习内容
-- 自适应学习路径
-- 学习效果评估"""
+    # Use sample outline
+    sample_outline = """# Artificial Intelligence in Education
+## AI Education Overview
+### Definition and Significance of AI Education
+- Application of AI technology in education
+- Improving teaching effectiveness and learning experience
+- Promoting education modernization
+### Development History of AI Education
+- Early exploration phase
+- Technology breakthrough period
+- Large-scale application period
+## Specific Application Scenarios
+### Personalized Learning
+- Intelligent recommendation of learning content
+- Adaptive learning paths
+- Learning effectiveness assessment"""
     
     data = {
-        "model": "doubao-1-5-pro-32k-250115",
-        "language": "中文",
+        "model": "google/gemma-2-9b-it:free",
+        "language": "English",
         "content": sample_outline,
         "stream": True
     }
@@ -93,51 +93,51 @@ def test_ppt_content():
         )
         
         if response.status_code == 200:
-            print("✅ 内容生成请求成功")
-            print("🎯 生成的PPT页面:")
+            print("✅ Content generation request successful")
+            print("🎯 Generated PPT pages:")
             print("-" * 50)
             
             page_count = 0
             for chunk in response.iter_content(chunk_size=1024, decode_unicode=True):
                 if chunk.strip():
                     page_count += 1
-                    print(f"页面 {page_count}:")
+                    print(f"Page {page_count}:")
                     try:
-                        # 尝试解析JSON以美化输出
+                        # Try to parse JSON for pretty output
                         page_data = json.loads(chunk.strip())
                         print(json.dumps(page_data, ensure_ascii=False, indent=2))
                     except json.JSONDecodeError:
                         print(chunk.strip())
                     print("-" * 30)
-            print(f"总共生成了 {page_count} 个页面")
+            print(f"Total of {page_count} pages generated")
         else:
-            print(f"❌ 内容生成失败: {response.status_code}")
-            print(f"错误信息: {response.text}")
+            print(f"❌ Content generation failed: {response.status_code}")
+            print(f"Error message: {response.text}")
             
     except Exception as e:
-        print(f"❌ 请求失败: {e}")
+        print(f"❌ Request failed: {e}")
 
 def main():
-    """主测试函数"""
-    print("🧪 PPTist AI Backend API 测试")
+    """Main test function"""
+    print("🧪 PPTist AI Backend API Test")
     print("=" * 50)
     
-    # 测试服务器连接
+    # Test server connection
     if not test_health():
-        print("❌ 服务器未启动或无法连接")
-        print("请先运行: uv run main.py")
+        print("❌ Server not started or cannot connect")
+        print("Please run: uv run main.py")
         return
     
-    # 测试大纲生成
+    # Test outline generation
     test_ppt_outline()
     
-    # 等待一下再测试内容生成
+    # Wait a bit before testing content generation
     time.sleep(2)
     
-    # 测试内容生成
+    # Test content generation
     test_ppt_content()
     
-    print("\n🎉 测试完成!")
+    print("\n🎉 Testing completed!")
 
 if __name__ == "__main__":
     main()
