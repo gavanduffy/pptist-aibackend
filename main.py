@@ -1,90 +1,56 @@
-from pathlib import Path
-import json
-import logging
-from typing import Dict
-
-from fastapi import APIRouter, FastAPI, HTTPException, Request
-from fastapi.exceptions import RequestValidationError
+from fastapi import FastAPI, APIRouter, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel, Field
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, Field
-
+import os
+import json
+import logging
 from config import settings
 
+# 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-BASE_DIR = Path(__file__).resolve().parent
-PROMPT_FILE_PATH = BASE_DIR / "prompts" / "ppt_prompts.json"
-REQUIRED_PROMPT_KEYS = {"outline", "cover_contents", "section_content"}
-
-
-def load_prompt_templates() -> Dict[str, str]:
-    """Load prompt templates from the external JSON file."""
-
-    try:
-        with PROMPT_FILE_PATH.open("r", encoding="utf-8") as file:
-            data = json.load(file)
-    except FileNotFoundError as exc:
-        raise RuntimeError(
-            f"Prompt file not found at {PROMPT_FILE_PATH.resolve()}"
-        ) from exc
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(
-            f"Prompt file {PROMPT_FILE_PATH.resolve()} contains invalid JSON"
-        ) from exc
-
-    missing_keys = REQUIRED_PROMPT_KEYS - data.keys()
-    if missing_keys:
-        missing = ", ".join(sorted(missing_keys))
-        raise RuntimeError(f"Missing prompt templates: {missing}")
-
-    return {key: str(value) for key, value in data.items()}
-
-
-try:
-    PROMPT_TEMPLATES = load_prompt_templates()
-    logger.info("📄 Loaded prompt templates from %s", PROMPT_FILE_PATH)
-except Exception as exc:  # pragma: no cover - fail fast at runtime
-    logger.error("⚠️ Failed to load prompt templates: %s", exc)
-    PROMPT_TEMPLATES = {}
-
+# 验证配置
+if not settings.validate():
+    logger.error("❌ 配置验证失败！")
+    if not settings.openai_api_key:
+        logger.error("原因: OPENAI_API_KEY 环境变量未设置")
+    elif settings.openai_api_key == "your-openai-api-key-here":
+        logger.error("原因: OPENAI_API_KEY 仍为默认值，请设置真实的 API Key")
+    logger.error("请检查 .env 文件或环境变量配置")
+else:
+    logger.info(f"✅ 配置验证通过 (模型: {settings.default_model})")
 
 app = FastAPI(
     title="PPTist AI Backend",
     description="AI-powered PPT generation backend using LangChain and FastAPI",
-    version="0.2.0",
+    version="0.1.0"
 )
 
-if not settings.validate():
-    logger.error("❌ Configuration validation failed!")
-    if not settings.openrouter_api_key:
-        logger.error("Reason: OPENROUTER_API_KEY environment variable is not set")
-    elif settings.openrouter_api_key == "your-openrouter-api-key-here":
-        logger.error("Reason: OPENROUTER_API_KEY still uses the placeholder value")
-    logger.error("Please update your .env file or environment variables")
-else:
-    logger.info("✅ Configuration validated (model: %s)", settings.default_model)
-
-# Default CORS configuration for local development stacks
+# 配置 CORS 允许的源
 allowed_origins = [
-    "http://localhost:3000",
-    "http://localhost:5173",
+    "http://localhost:3000",  # React 开发服务器
+    "http://localhost:5173",  # Vite 开发服务器
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
-    "http://localhost:8080",
+    "http://localhost:8080",  # Vue 开发服务器
     "http://127.0.0.1:8080",
+    
 ]
 
+# 如果是调试模式，允许所有源（开发环境）
 if settings.debug:
     allowed_origins = ["*"]
-    logger.info("🌐 CORS: debug mode enabled - allowing all origins")
+    logger.info("🌐 CORS: 调试模式 - 允许所有源访问")
 else:
-    logger.info("🌐 CORS: production mode - allowed origins: %s", allowed_origins)
+    logger.info(f"🌐 CORS: 生产模式 - 允许的源: {allowed_origins}")
 
+# 添加 CORS 中间件配置
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -93,365 +59,441 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-def prompt_template(key: str) -> PromptTemplate:
-    """Return the requested prompt template or raise an HTTP error."""
-
-    template_text = PROMPT_TEMPLATES.get(key)
-    if not template_text:
-        logger.error("Prompt template '%s' is not available", key)
-        raise HTTPException(status_code=500, detail=f"Prompt template '{key}' is not available")
-    return PromptTemplate.from_template(template_text)
-
-
+# 添加请求验证错误处理器
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Return a helpful validation error response."""
-
-    logger.error("🚫 Validation failed: %s %s", request.method, request.url)
-    logger.error("🚫 Details: %s", exc.errors())
-
+    """处理请求验证错误，提供详细的错误信息"""
+    logger.error(f"🚫 请求验证失败: {request.method} {request.url}")
+    logger.error(f"🚫 错误详情: {exc.errors()}")
+    
+    # 提取请求体信息
     try:
         body = await request.body()
         if body:
-            logger.error("🚫 Request body: %s", body.decode("utf-8"))
-    except Exception:  # pragma: no cover - best effort logging
+            logger.error(f"🚫 请求体: {body.decode('utf-8')}")
+    except Exception:
         pass
-
+    
     return JSONResponse(
         status_code=422,
         content={
             "detail": exc.errors(),
-            "message": "Request validation failed",
+            "message": "请求参数验证失败",
             "help": {
-                "/tools/aippt_outline": "Required body: model, language, content",
-                "/tools/aippt": "Required body: model, language, content",
-            },
-        },
+                "/tools/aippt_outline": "需要参数: model, language, content",
+                "/tools/aippt": "需要参数: model, language, content"
+            }
+        }
     )
-
 
 router = APIRouter()
 
+# PPT大纲生成模板
+outline_template = """你是用户的PPT大纲生成助手，请根据下列主题生成章节结构。
 
-def build_outline_chain(model_name: str | None = None):
-    """Create the chain that generates the PPT outline."""
+注意事项：
+- 节可以有2~6个，最多10个
+- 每个节内容数量只能有1~10个，尽量保证每个节的内容数不同
+- 内容和节的数量可以根据主题灵活调整
+- 不要添加任何注释或解释说明
 
+输出格式为：
+# PPT标题（只有一个）
+## 章的名字
+### 节的名字
+- 内容1
+- 内容2
+### 节的名字
+- xxxxx
+- xxxxx
+- xxxxx
+### 节的名字
+- xxxxx
+- xxxxx
+- xxxxx
+- xxxxx
+
+这是生成要求：{content}
+这是生成的语言要求：{language}
+"""
+
+outline_prompt = PromptTemplate.from_template(outline_template)
+
+# PPT封面页和目录页生成模板
+cover_contents_template = """
+你是一个专业的PPT内容生成助手，请根据给定的大纲内容，生成封面页和目录页的JSON内容。
+
+输出格式要求如下：
+- 每一页为一个独立 JSON 对象
+- 每个 JSON 对象写在**同一行**
+- 页面之间用两个换行符分隔
+- 不要添加任何注释或解释说明
+
+注意事项：
+- 只生成封面页("cover")和目录页("contents")
+- 每个text的介绍内容可以尽量丰富，但是不应该超过100字
+
+示例格式（注意每个 JSON 占一行）：
+
+{{"type": "cover", "data": {{ "title": "接口相关内容介绍", "text": "了解接口定义、设计与实现要点" }}}}
+
+{{"type": "contents", "data": {{ "items": ["接口定义概述", "接口分类详情", "接口设计原则"] }}}}
+
+请根据以下信息生成封面页和目录页：
+
+语言：{language}
+大纲内容：{content}
+"""
+
+cover_contents_prompt = PromptTemplate.from_template(cover_contents_template)
+
+# PPT章节内容生成模板
+section_content_template = """
+你是一个专业的PPT内容生成助手，请根据给定的章节信息，生成该章节的过渡页和内容页的JSON内容。
+
+输出格式要求如下：
+- 每一页为一个独立 JSON 对象
+- 每个 JSON 对象写在**同一行**
+- 页面之间用两个换行符分隔
+- 不要添加任何注释或解释说明
+
+注意事项：
+- 为每个章节生成一个过渡页("transition")
+- 为章节下的每个节生成一个内容页("content")
+- 每个text的内容可以尽量丰富，但是不应该超过100字
+
+示例格式（注意每个 JSON 占一行）：
+
+{{"type": "transition", "data": {{ "title": "接口定义", "text": "开始介绍接口的基本含义" }}}}
+
+{{"type": "content", "data": {{ "title": "接口定义", "items": [ {{ "title": "基本概念", "text": "接口定义了一组方法的契约或规范，但不提供具体实现。它好比一个“蓝图”，规定了实现它的类必须具备哪些功能。" }}, {{ "title": "作用", "text": "接口的主要作用是实现多态和松耦合。它让不同类型的对象能以统一的方式被处理，提高了代码的灵活性、可扩展性和复用性。通过接口，系统各部分之间的依赖性降低，更易于维护和升级。" }} ] }}}}
+
+请根据以下信息生成章节内容：
+
+语言：{language}
+章节标题：{section_title}
+章节内容：{section_content}
+"""
+
+section_content_prompt = PromptTemplate.from_template(section_content_template)
+
+
+
+def build_outline_chain(model_name: str = None):
+    """构建PPT大纲生成链"""
     if not settings.validate():
-        raise HTTPException(status_code=500, detail="OpenRouter API key is missing")
-
+        raise HTTPException(status_code=500, detail="OpenAI API Key 未配置")
+    
     model_config = settings.get_model_config(model_name)
     llm = ChatOpenAI(
         temperature=model_config["temperature"],
         model=model_config["model"],
         openai_api_key=model_config["openai_api_key"],
-        openai_api_base=model_config["openai_api_base"],
-        default_headers=model_config["default_headers"],
+        openai_api_base=model_config["openai_api_base"]
     )
-    return prompt_template("outline") | llm | StrOutputParser()
+    return outline_prompt | llm | StrOutputParser()
 
 
-def build_cover_contents_chain(model_name: str | None = None):
-    """Create the chain that generates the cover and table of contents."""
-
+def build_cover_contents_chain(model_name: str = None):
+    """构建封面页和目录页生成链"""
     if not settings.validate():
-        raise HTTPException(status_code=500, detail="OpenRouter API key is missing")
-
+        raise HTTPException(status_code=500, detail="OpenAI API Key 未配置")
+    
     model_config = settings.get_model_config(model_name)
     llm = ChatOpenAI(
         temperature=model_config["temperature"],
         model=model_config["model"],
         openai_api_key=model_config["openai_api_key"],
-        openai_api_base=model_config["openai_api_base"],
-        default_headers=model_config["default_headers"],
+        openai_api_base=model_config["openai_api_base"]
     )
-    return prompt_template("cover_contents") | llm | StrOutputParser()
+    return cover_contents_prompt | llm | StrOutputParser()
 
 
-def build_section_content_chain(model_name: str | None = None):
-    """Create the chain that generates detailed section content."""
-
+def build_section_content_chain(model_name: str = None):
+    """构建章节内容生成链"""
     if not settings.validate():
-        raise HTTPException(status_code=500, detail="OpenRouter API key is missing")
-
+        raise HTTPException(status_code=500, detail="OpenAI API Key 未配置")
+    
     model_config = settings.get_model_config(model_name)
     llm = ChatOpenAI(
         temperature=model_config["temperature"],
         model=model_config["model"],
         openai_api_key=model_config["openai_api_key"],
-        openai_api_base=model_config["openai_api_base"],
-        default_headers=model_config["default_headers"],
+        openai_api_base=model_config["openai_api_base"]
     )
-    return prompt_template("section_content") | llm | StrOutputParser()
+    return section_content_prompt | llm | StrOutputParser()
 
 
-def parse_outline(content: str) -> Dict[str, object]:
-    """Parse the outline text into a structured dictionary."""
 
-    lines = content.strip().split("\n")
-    result: Dict[str, object] = {
-        "title": "",
-        "chapters": [],
+
+def parse_outline(content: str) -> dict:
+    """解析大纲内容，提取标题和章节信息"""
+    lines = content.strip().split('\n')
+    result = {
+        'title': '',
+        'chapters': []
     }
-
+    
     current_chapter = None
     current_section = None
-
+    
     for line in lines:
         line = line.strip()
         if not line:
             continue
-
-        if line.startswith("# "):
-            result["title"] = line[2:].strip()
-        elif line.startswith("## "):
+            
+        if line.startswith('# '):  # PPT标题
+            result['title'] = line[2:].strip()
+        elif line.startswith('## '):  # 章节标题
             if current_chapter:
-                result["chapters"].append(current_chapter)
+                result['chapters'].append(current_chapter)
             current_chapter = {
-                "title": line[3:].strip(),
-                "sections": [],
+                'title': line[3:].strip(),
+                'sections': []
             }
             current_section = None
-        elif line.startswith("### "):
-            if current_chapter is not None:
+        elif line.startswith('### '):  # 节标题
+            if current_chapter:
                 current_section = {
-                    "title": line[4:].strip(),
-                    "items": [],
+                    'title': line[4:].strip(),
+                    'items': []
                 }
-                current_chapter["sections"].append(current_section)
-        elif line.startswith("- ") and current_section is not None:
-            current_section["items"].append(line[2:].strip())
-
+                current_chapter['sections'].append(current_section)
+        elif line.startswith('- '):  # 内容项
+            if current_section:
+                current_section['items'].append(line[2:].strip())
+    
+    # 添加最后一个章节
     if current_chapter:
-        result["chapters"].append(current_chapter)
-
+        result['chapters'].append(current_chapter)
+    
     return result
 
 
+# 请求模型定义
 class PPTOutlineRequest(BaseModel):
-    model: str = Field(
-        default_factory=lambda: settings.default_model,
-        description="Model name to use, for example openrouter/auto",
-    )
-    language: str = Field(..., description="Target language for the generated outline")
-    content: str = Field(..., description="Prompt describing the presentation goals")
-    stream: bool = Field(True, description="Whether to stream tokens back to the client")
+    model: str = Field('gpt-4o-mini', description="使用的模型名称，例如 gpt-4o 或 gpt-4o-mini")
+    language: str = Field(..., description="生成内容的语言，例如 中文、English")
+    content: str = Field(..., max_length=50, description="生成的要求，不超过50字")
+    stream: bool = True
 
 
 class PPTContentRequest(BaseModel):
-    model: str = Field(
-        default_factory=lambda: settings.default_model,
-        description="Model name to use, for example openrouter/auto",
-    )
-    language: str = Field(..., description="Target language for the generated content")
-    content: str = Field(..., description="PPT outline content to expand")
-    stream: bool = Field(True, description="Whether to stream tokens back to the client")
+    model: str = Field('gpt-4o-mini', description="使用的模型名称，例如 gpt-4o 或 gpt-4o-mini")
+    language: str = Field(..., description="生成内容的语言，例如 中文、English")
+    content: str = Field(..., description="PPT大纲内容")
+    stream: bool = True
 
 
+# 路由实现
 @router.post("/tools/aippt_outline")
 async def generate_ppt_outline_stream(request: PPTOutlineRequest):
-    """Generate a PPT outline and stream the response."""
-
-    logger.info(
-        "📝 Outline request received: model=%s, language=%s", request.model, request.language
-    )
-
+    """生成PPT大纲（流式返回）"""
+    logger.info(f"📝 收到大纲生成请求: 模型={request.model}, 语言={request.language}, 要求={request.content}")
+    
     try:
         chain = build_outline_chain(request.model)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.exception("Failed to build outline generation chain: %s", exc)
-        raise HTTPException(status_code=500, detail="Internal server error") from exc
+    except HTTPException as e:
+        logger.error(f"构建大纲生成链失败: {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"构建大纲生成链异常: {str(e)}")
+        raise HTTPException(status_code=500, detail="服务器内部错误")
 
     async def token_stream():
         try:
-            logger.info("Starting PPT outline generation…")
-            async for chunk in chain.astream(
-                {
-                    "content": request.content,
-                    "language": request.language,
-                }
-            ):
+            logger.info("开始生成PPT大纲...")
+            async for chunk in chain.astream({
+                "content": request.content,
+                "language": request.language
+            }):
                 yield chunk
-            logger.info("PPT outline generation completed")
-        except Exception as exc:  # pragma: no cover - streaming safety net
-            error_msg = f"Error during generation: {exc}"
+            logger.info("PPT大纲生成完成")
+        except Exception as e:
+            error_msg = f"生成过程中出错: {str(e)}"
             logger.error(error_msg)
-            yield f"Error: {error_msg}"
+            yield f"错误: {error_msg}"
 
     return StreamingResponse(token_stream(), media_type="text/event-stream")
 
 
 @router.post("/tools/aippt")
 async def generate_ppt_content_stream(request: PPTContentRequest):
-    """Generate PPT content (cover, chapters, ending) as a streamed response."""
-
-    logger.info("📄 Content request received: model=%s, language=%s", request.model, request.language)
-    logger.info("📄 Outline length: %s characters", len(request.content))
-
+    """生成PPT内容（分步骤流式返回）"""
+    logger.info(f"📄 收到内容生成请求: 模型={request.model}, 语言={request.language}")
+    logger.info(f"📄 大纲内容长度: {len(request.content)} 字符")
+    
+    # 解析大纲
     try:
         outline_data = parse_outline(request.content)
-        logger.info(
-            "📄 Outline parsed successfully: title=%s, chapters=%s",
-            outline_data.get("title"),
-            len(outline_data.get("chapters", [])),
-        )
-    except Exception as exc:
-        logger.exception("Failed to parse outline: %s", exc)
-        raise HTTPException(status_code=400, detail="Unable to parse outline format") from exc
-
+        logger.info(f"📄 解析大纲成功: 标题={outline_data['title']}, 章节数={len(outline_data['chapters'])}")
+    except Exception as e:
+        logger.error(f"解析大纲失败: {str(e)}")
+        raise HTTPException(status_code=400, detail="大纲格式解析失败")
+    
+    # 构建生成链
     try:
         cover_contents_chain = build_cover_contents_chain(request.model)
         section_content_chain = build_section_content_chain(request.model)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.exception("Failed to build content chains: %s", exc)
-        raise HTTPException(status_code=500, detail="Internal server error") from exc
-
+    except HTTPException as e:
+        logger.error(f"构建生成链失败: {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"构建生成链异常: {str(e)}")
+        raise HTTPException(status_code=500, detail="服务器内部错误")
+    
     async def structured_page_stream():
         page_count = 0
-
+        
         try:
-            logger.info("🏠 Generating cover and table of contents…")
+            # 第一步：生成封面页和目录页
+            logger.info("🏠 开始生成封面页和目录页...")
             buffer = ""
-            async for chunk in cover_contents_chain.astream(
-                {
-                    "language": request.language,
-                    "content": request.content,
-                }
-            ):
+            async for chunk in cover_contents_chain.astream({
+                "language": request.language,
+                "content": request.content
+            }):
                 buffer += chunk
+                # 检查缓冲区中是否包含完整的页面分隔符 "\n\n"
                 while "\n\n" in buffer:
                     page_content, separator, rest_of_buffer = buffer.partition("\n\n")
                     if page_content.strip():
                         page_count += 1
-                        logger.debug("Yielding page %s (cover/contents)", page_count)
+                        logger.debug(f"生成第 {page_count} 页内容（封面/目录）")
                         yield page_content + separator
                     buffer = rest_of_buffer
-
+            
+            # 处理剩余内容
             if buffer.strip():
                 page_count += 1
-                logger.debug("Yielding page %s (final cover/contents chunk)", page_count)
+                logger.debug(f"生成第 {page_count} 页内容（封面/目录最后一页）")
                 yield buffer + "\n\n"
-
-            for chapter_index, chapter in enumerate(outline_data["chapters"], start=1):
-                logger.info("📖 Generating chapter %s: %s", chapter_index, chapter["title"])
-
+            
+            # 第二步：为每个章节生成过渡页和内容页
+            for chapter_idx, chapter in enumerate(outline_data['chapters']):
+                logger.info(f"📖 开始生成第 {chapter_idx + 1} 章: {chapter['title']}")
+                
+                # 准备章节内容字符串
                 section_content = f"## {chapter['title']}\n"
-                for section in chapter["sections"]:
+                for section in chapter['sections']:
                     section_content += f"### {section['title']}\n"
-                    for item in section["items"]:
+                    for item in section['items']:
                         section_content += f"- {item}\n"
-
+                
                 buffer = ""
-                async for chunk in section_content_chain.astream(
-                    {
-                        "language": request.language,
-                        "section_title": chapter["title"],
-                        "section_content": section_content,
-                    }
-                ):
+                async for chunk in section_content_chain.astream({
+                    "language": request.language,
+                    "section_title": chapter['title'],
+                    "section_content": section_content
+                }):
                     buffer += chunk
+                    # 检查缓冲区中是否包含完整的页面分隔符 "\n\n"
                     while "\n\n" in buffer:
                         page_content, separator, rest_of_buffer = buffer.partition("\n\n")
                         if page_content.strip():
                             page_count += 1
-                            logger.debug(
-                                "Yielding page %s (chapter %s)", page_count, chapter_index
-                            )
+                            logger.debug(f"生成第 {page_count} 页内容（第{chapter_idx + 1}章）")
                             yield page_content + separator
                         buffer = rest_of_buffer
-
+                
+                # 处理剩余内容
                 if buffer.strip():
                     page_count += 1
-                    logger.debug(
-                        "Yielding page %s (final chunk for chapter %s)", page_count, chapter_index
-                    )
+                    logger.debug(f"生成第 {page_count} 页内容（第{chapter_idx + 1}章最后一页）")
                     yield buffer + "\n\n"
-
-            logger.info("🎬 Generating ending page…")
+            
+            # 第三步：生成结束页
+            logger.info("🎬 开始生成结束页...")
             page_count += 1
-            logger.debug("Yielding page %s (ending)", page_count)
+            logger.debug(f"生成第 {page_count} 页内容（结束页）")
             yield '{"type": "end"}'
-
-            logger.info("PPT content generation finished. Total pages: %s", page_count)
-        except Exception as exc:  # pragma: no cover - streaming safety net
-            error_msg = f"Error during generation: {exc}"
+            
+            logger.info(f"PPT内容生成完成，总共生成 {page_count} 页")
+            
+        except Exception as e:
+            error_msg = f"生成过程中出错: {str(e)}"
             logger.error(error_msg)
-            yield json.dumps({"error": error_msg})
+            yield f'{{"error": "{error_msg}"}}'
 
     return StreamingResponse(structured_page_stream(), media_type="text/event-stream")
 
 
+# 添加健康检查端点
 @router.get("/health")
 async def health_check():
-    """Simple health check endpoint."""
-
+    """健康检查端点"""
     return {"status": "healthy", "message": "PPTist AI Backend is running"}
 
 
+# 添加JSON文件读取端点
 @router.get("/data/{filename}.json")
 async def get_json_file(filename: str):
-    """Read JSON templates from the template directory."""
-
+    """读取template目录下的JSON文件"""
     try:
-        file_path = BASE_DIR / "template" / f"{filename}.json"
-
-        if not file_path.exists():
-            logger.warning("📁 File not found: %s", file_path)
-            raise HTTPException(status_code=404, detail=f"File {filename}.json not found")
-
-        with file_path.open("r", encoding="utf-8") as file:
-            data = json.load(file)
-
-        logger.info("📄 Successfully read file: %s.json", filename)
+        # 构建文件路径
+        file_path = os.path.join("template", f"{filename}.json")
+        
+        # 检查文件是否存在
+        if not os.path.exists(file_path):
+            logger.warning(f"📁 文件不存在: {file_path}")
+            raise HTTPException(status_code=404, detail=f"文件 {filename}.json 不存在")
+        
+        # 读取JSON文件
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        logger.info(f"📄 成功读取文件: {filename}.json")
         return data
-
-    except json.JSONDecodeError as exc:
-        logger.error("🚫 Invalid JSON in %s.json: %s", filename, exc)
-        raise HTTPException(status_code=400, detail=f"File {filename}.json is not valid JSON") from exc
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.exception("🚫 Failed to read file %s.json: %s", filename, exc)
-        raise HTTPException(status_code=500, detail="Internal server error") from exc
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"🚫 JSON格式错误: {filename}.json - {str(e)}")
+        raise HTTPException(status_code=400, detail=f"文件 {filename}.json 格式错误")
+    except Exception as e:
+        logger.error(f"🚫 读取文件失败: {filename}.json - {str(e)}")
+        raise HTTPException(status_code=500, detail="服务器内部错误")
 
 
+# 注册路由
 app.include_router(router)
 
 
+# 根路径
 @app.get("/")
 async def root():
     return {
         "message": "Welcome to PPTist AI Backend",
-        "version": app.version,
+        "version": "0.1.0",
         "endpoints": {
             "outline": "/tools/aippt_outline",
             "content": "/tools/aippt",
             "health": "/health",
             "data": "/data/{filename}.json",
-            "docs": "/docs",
-        },
+            "docs": "/docs"
+        }
     }
 
 
 if __name__ == "__main__":
     import uvicorn
-
+    
     if not settings.validate():
-        logger.error("❌ Startup aborted: OpenRouter API key is missing or invalid")
-        logger.error("Please set OPENROUTER_API_KEY in your environment or .env file")
+        logger.error("❌ 启动失败: OpenAI API Key 未配置或无效")
+        logger.error("请设置 OPENAI_API_KEY 环境变量或创建 .env 文件")
+        logger.error("可以复制 .env.example 为 .env 并修改其中的 API Key")
         exit(1)
-
-    logger.info("🚀 Starting PPTist AI Backend…")
-    logger.info("📡 Server address: http://%s:%s", settings.host, settings.port)
-    logger.info("📚 API docs: http://%s:%s/docs", settings.host, settings.port)
-
-    uvicorn.run(
-        "main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.debug,
-    )
+    
+    logger.info(f"🚀 启动 PPTist AI Backend...")
+    logger.info(f"📡 服务器地址: http://{settings.host}:{settings.port}")
+    logger.info(f"📚 API 文档: http://{settings.host}:{settings.port}/docs")
+    
+    try:
+        uvicorn.run(
+            "main:app",  # 使用字符串导入路径以支持 reload 功能
+            host=settings.host,
+            port=settings.port,
+            reload=settings.debug
+        )
+    except Exception as e:
+        logger.error(f"❌ 启动失败: {str(e)}")
+        logger.error("请检查端口是否被占用或其他启动问题")
+        raise
