@@ -22,8 +22,8 @@ const __dirname = dirname(__filename);
 // Configuration
 const config = {
   openaiApiKey: process.env.OPENAI_API_KEY,
-  openaiBaseUrl: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
-  defaultModel: process.env.DEFAULT_MODEL || 'gpt-4o-mini',
+  openaiBaseUrl: process.env.OPENAI_BASE_URL || 'https://openrouter.ai/api/v1',
+  defaultModel: process.env.DEFAULT_MODEL || 'x-ai/grok-4.1-fast',
   defaultTemperature: parseFloat(process.env.DEFAULT_TEMPERATURE || '0.7'),
   host: process.env.HOST || '0.0.0.0',
   port: parseInt(process.env.PORT || '8000'),
@@ -58,8 +58,8 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5173',
-  'http://localhost:8080',
-  'http://127.0.0.1:8080',
+  'https://powerpoint-beta.vercel.app',
+  'https://ppt.euan.live',
   '*',
 ];
 
