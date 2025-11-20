@@ -21,28 +21,43 @@ ENV/
 env.bak/
 venv.bak/
 
-# uv 包管理器
+# uv package manager
 .uv/
 uv.lock
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+.pnpm-debug.log
 
 # IDE
 .vscode/
 .idea/
 *.code-workspace
 
-# 日志文件
+# Log files
 *.log
 *.tmp
 *.temp
 test_*.log
 
-# 缓存
+# Cache
 .cache/
 .pytest_cache/
 .coverage
 .mypy_cache/
 
-# 其他
+# Vercel
+.vercel
+
+# Netlify
+.netlify
+
+# Other
 *.so
 .DS_Store
 Thumbs.db
