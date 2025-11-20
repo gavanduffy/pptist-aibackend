@@ -11,20 +11,20 @@ import json
 import logging
 from config import settings
 
-# 配置日志
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 验证配置
+# Validate configuration
 if not settings.validate():
-    logger.error("❌ 配置验证失败！")
+    logger.error("❌ Configuration validation failed!")
     if not settings.openai_api_key:
-        logger.error("原因: OPENAI_API_KEY 环境变量未设置")
+        logger.error("Reason: OPENAI_API_KEY environment variable is not set")
     elif settings.openai_api_key == "your-openai-api-key-here":
-        logger.error("原因: OPENAI_API_KEY 仍为默认值，请设置真实的 API Key")
-    logger.error("请检查 .env 文件或环境变量配置")
+        logger.error("Reason: OPENAI_API_KEY is still the default value, please set a real API Key")
+    logger.error("Please check .env file or environment variable configuration")
 else:
-    logger.info(f"✅ 配置验证通过 (模型: {settings.default_model})")
+    logger.info(f"✅ Configuration validation passed (model: {settings.default_model})")
 
 app = FastAPI(
     title="PPTist AI Backend",
@@ -32,25 +32,25 @@ app = FastAPI(
     version="0.1.0"
 )
 
-# 配置 CORS 允许的源
+# Configure CORS allowed origins
 allowed_origins = [
-    "http://localhost:3000",  # React 开发服务器
-    "http://localhost:5173",  # Vite 开发服务器
+    "http://localhost:3000",  # React development server
+    "http://localhost:5173",  # Vite development server
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
-    "http://localhost:8080",  # Vue 开发服务器
+    "http://localhost:8080",  # Vue development server
     "http://127.0.0.1:8080",
     
 ]
 
-# 如果是调试模式，允许所有源（开发环境）
+# If in debug mode, allow all origins (development environment)
 if settings.debug:
     allowed_origins = ["*"]
-    logger.info("🌐 CORS: 调试模式 - 允许所有源访问")
+    logger.info("🌐 CORS: Debug mode - allowing all origins")
 else:
-    logger.info(f"🌐 CORS: 生产模式 - 允许的源: {allowed_origins}")
+    logger.info(f"🌐 CORS: Production mode - allowed origins: {allowed_origins}")
 
-# 添加 CORS 中间件配置
+# Add CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -59,18 +59,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 添加请求验证错误处理器
+# Add request validation error handler
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """处理请求验证错误，提供详细的错误信息"""
-    logger.error(f"🚫 请求验证失败: {request.method} {request.url}")
-    logger.error(f"🚫 错误详情: {exc.errors()}")
+    """Handle request validation errors, provide detailed error information"""
+    logger.error(f"🚫 Request validation failed: {request.method} {request.url}")
+    logger.error(f"🚫 Error details: {exc.errors()}")
     
-    # 提取请求体信息
+    # Extract request body information
     try:
         body = await request.body()
         if body:
-            logger.error(f"🚫 请求体: {body.decode('utf-8')}")
+            logger.error(f"🚫 Request body: {body.decode('utf-8')}")
     except Exception:
         pass
     
@@ -78,101 +78,88 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=422,
         content={
             "detail": exc.errors(),
-            "message": "请求参数验证失败",
+            "message": "Request parameter validation failed",
             "help": {
-                "/tools/aippt_outline": "需要参数: model, language, content",
-                "/tools/aippt": "需要参数: model, language, content"
+                "/tools/aippt_outline": "Required parameters: model, language, content",
+                "/tools/aippt": "Required parameters: model, language, content"
             }
         }
     )
 
 router = APIRouter()
 
-# PPT大纲生成模板
-outline_template = """你是用户的PPT大纲生成助手，请根据下列主题生成章节结构。
+# PPT outline generation template
+outline_template = """You are the user's PPT outline assistant. Based on the topic below, produce a presentation outline.
 
-注意事项：
-- 节可以有2~6个，最多10个
-- 每个节内容数量只能有1~10个，尽量保证每个节的内容数不同
-- 内容和节的数量可以根据主题灵活调整
-- 不要添加任何注释或解释说明
+Guidelines:
+- Create between 2 and 6 chapters, with a hard maximum of 10.
+- Each chapter should contain 1 to 10 sections and vary the number of sections when possible.
+- Section bullet points must stay between 1 and 6 items.
+- Do not include commentary or explanations outside the outline.
 
-输出格式为：
-# PPT标题（只有一个）
-## 章的名字
-### 节的名字
-- 内容1
-- 内容2
-### 节的名字
-- xxxxx
-- xxxxx
-- xxxxx
-### 节的名字
-- xxxxx
-- xxxxx
-- xxxxx
-- xxxxx
+Output format:
+# PPT Title
+## Chapter name
+### Section name
+- Bullet point
+- Bullet point
+### Section name
+- ...
 
-这是生成要求：{content}
-这是生成的语言要求：{language}
+Topic requirements: {content}
+Language of the outline: {language}
 """
 
 outline_prompt = PromptTemplate.from_template(outline_template)
 
-# PPT封面页和目录页生成模板
+# PPT cover page and contents page generation template
 cover_contents_template = """
-你是一个专业的PPT内容生成助手，请根据给定的大纲内容，生成封面页和目录页的JSON内容。
+You are an expert PPT assistant. Using the supplied outline, create JSON for a cover page and a table of contents page.
 
-输出格式要求如下：
-- 每一页为一个独立 JSON 对象
-- 每个 JSON 对象写在**同一行**
-- 页面之间用两个换行符分隔
-- 不要添加任何注释或解释说明
+Output requirements:
+- Each page must be a standalone JSON object on a single line.
+- Separate pages with two newline characters.
+- Do not add commentary or explanations.
 
-注意事项：
-- 只生成封面页("cover")和目录页("contents")
-- 每个text的介绍内容可以尽量丰富，但是不应该超过100字
+Important notes:
+- Only generate a cover page ("cover") and a contents page ("contents").
+- Keep each text field under 100 words while staying descriptive.
 
-示例格式（注意每个 JSON 占一行）：
+Example (each JSON object on one line):
 
-{{"type": "cover", "data": {{ "title": "接口相关内容介绍", "text": "了解接口定义、设计与实现要点" }}}}
+{{"type": "cover", "data": {{ "title": "API Overview", "text": "Discover the key elements of interface design" }}}}
 
-{{"type": "contents", "data": {{ "items": ["接口定义概述", "接口分类详情", "接口设计原则"] }}}}
+{{"type": "contents", "data": {{ "items": ["Definition", "Classification", "Design Principles"] }}}}
 
-请根据以下信息生成封面页和目录页：
-
-语言：{language}
-大纲内容：{content}
+Language: {language}
+Outline content: {content}
 """
 
 cover_contents_prompt = PromptTemplate.from_template(cover_contents_template)
 
-# PPT章节内容生成模板
+# PPT section content generation template
 section_content_template = """
-你是一个专业的PPT内容生成助手，请根据给定的章节信息，生成该章节的过渡页和内容页的JSON内容。
+You are an expert PPT assistant. Using the chapter details below, create JSON for a transition page and detailed content pages.
 
-输出格式要求如下：
-- 每一页为一个独立 JSON 对象
-- 每个 JSON 对象写在**同一行**
-- 页面之间用两个换行符分隔
-- 不要添加任何注释或解释说明
+Output requirements:
+- Each page must be a standalone JSON object on a single line.
+- Separate pages with two newline characters.
+- Do not add commentary or explanations.
 
-注意事项：
-- 为每个章节生成一个过渡页("transition")
-- 为章节下的每个节生成一个内容页("content")
-- 每个text的内容可以尽量丰富，但是不应该超过100字
+Important notes:
+- Generate one transition page ("transition") per chapter.
+- Generate one content page ("content") for every section within the chapter.
+- Keep each text field under 100 words while remaining informative.
 
-示例格式（注意每个 JSON 占一行）：
+Example (each JSON object on one line):
 
-{{"type": "transition", "data": {{ "title": "接口定义", "text": "开始介绍接口的基本含义" }}}}
+{{"type": "transition", "data": {{ "title": "Interface Definition", "text": "Introducing the core meaning of interfaces" }}}}
 
-{{"type": "content", "data": {{ "title": "接口定义", "items": [ {{ "title": "基本概念", "text": "接口定义了一组方法的契约或规范，但不提供具体实现。它好比一个“蓝图”，规定了实现它的类必须具备哪些功能。" }}, {{ "title": "作用", "text": "接口的主要作用是实现多态和松耦合。它让不同类型的对象能以统一的方式被处理，提高了代码的灵活性、可扩展性和复用性。通过接口，系统各部分之间的依赖性降低，更易于维护和升级。" }} ] }}}}
+{{"type": "content", "data": {{ "title": "Interface Definition", "items": [ {{ "title": "Concept", "text": "Interfaces describe behaviours without implementations." }}, {{ "title": "Role", "text": "They enable polymorphism and loose coupling." }} ] }}}}
 
-请根据以下信息生成章节内容：
-
-语言：{language}
-章节标题：{section_title}
-章节内容：{section_content}
+Language: {language}
+Chapter title: {section_title}
+Chapter details: {section_content}
 """
 
 section_content_prompt = PromptTemplate.from_template(section_content_template)
@@ -180,9 +167,9 @@ section_content_prompt = PromptTemplate.from_template(section_content_template)
 
 
 def build_outline_chain(model_name: str = None):
-    """构建PPT大纲生成链"""
+    """Build PPT outline generation chain"""
     if not settings.validate():
-        raise HTTPException(status_code=500, detail="OpenAI API Key 未配置")
+        raise HTTPException(status_code=500, detail="OpenAI API Key is not configured")
     
     model_config = settings.get_model_config(model_name)
     llm = ChatOpenAI(
@@ -195,9 +182,9 @@ def build_outline_chain(model_name: str = None):
 
 
 def build_cover_contents_chain(model_name: str = None):
-    """构建封面页和目录页生成链"""
+    """Build cover page and contents page generation chain"""
     if not settings.validate():
-        raise HTTPException(status_code=500, detail="OpenAI API Key 未配置")
+        raise HTTPException(status_code=500, detail="OpenAI API Key is not configured")
     
     model_config = settings.get_model_config(model_name)
     llm = ChatOpenAI(
@@ -210,9 +197,9 @@ def build_cover_contents_chain(model_name: str = None):
 
 
 def build_section_content_chain(model_name: str = None):
-    """构建章节内容生成链"""
+    """Build section content generation chain"""
     if not settings.validate():
-        raise HTTPException(status_code=500, detail="OpenAI API Key 未配置")
+        raise HTTPException(status_code=500, detail="OpenAI API Key is not configured")
     
     model_config = settings.get_model_config(model_name)
     llm = ChatOpenAI(
@@ -227,7 +214,7 @@ def build_section_content_chain(model_name: str = None):
 
 
 def parse_outline(content: str) -> dict:
-    """解析大纲内容，提取标题和章节信息"""
+    """Parse outline content, extract title and chapter information"""
     lines = content.strip().split('\n')
     result = {
         'title': '',
@@ -244,7 +231,7 @@ def parse_outline(content: str) -> dict:
             
         if line.startswith('# '):  # PPT标题
             result['title'] = line[2:].strip()
-        elif line.startswith('## '):  # 章节标题
+        elif line.startswith('## '):  # Chapter title
             if current_chapter:
                 result['chapters'].append(current_chapter)
             current_chapter = {
@@ -263,7 +250,7 @@ def parse_outline(content: str) -> dict:
             if current_section:
                 current_section['items'].append(line[2:].strip())
     
-    # 添加最后一个章节
+    # Add the last chapter
     if current_chapter:
         result['chapters'].append(current_chapter)
     
@@ -477,7 +464,7 @@ if __name__ == "__main__":
     import uvicorn
     
     if not settings.validate():
-        logger.error("❌ 启动失败: OpenAI API Key 未配置或无效")
+        logger.error("❌ 启动失败: OpenAI API Key is not configured或无效")
         logger.error("请设置 OPENAI_API_KEY 环境变量或创建 .env 文件")
         logger.error("可以复制 .env.example 为 .env 并修改其中的 API Key")
         exit(1)

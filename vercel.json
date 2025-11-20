@@ -1,14 +1,21 @@
 {
-  "functions": {
-    "api/index.py": {
-      "runtime": "python3.11",
-      "maxDuration": 60
+  "version": 2,
+  "builds": [
+    {
+      "src": "index.js",
+      "use": "@vercel/node"
     }
-  },
+  ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/api/index.py"
+      "dest": "/index.js"
     }
-  ]
+  ],
+  "env": {
+    "OPENAI_API_KEY": "@openai_api_key",
+    "OPENAI_BASE_URL": "@openai_base_url",
+    "DEFAULT_MODEL": "@default_model",
+    "DEFAULT_TEMPERATURE": "@default_temperature"
+  }
 }

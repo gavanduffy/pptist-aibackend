@@ -1,5 +1,5 @@
 """
-配置管理模块
+Configuration management module
 """
 import os
 from typing import Optional
@@ -7,7 +7,7 @@ import dotenv
 dotenv.load_dotenv()
 
 class Settings:
-    """应用配置类"""
+    """Application configuration class"""
     
     def __init__(self):
         self.openai_api_key: Optional[str] = os.getenv("OPENAI_API_KEY")
@@ -19,7 +19,7 @@ class Settings:
         self.debug: bool = os.getenv("DEBUG", "false").lower() == "true"
     
     def validate(self) -> bool:
-        """验证配置是否有效"""
+        """Validate if configuration is valid"""
         if not self.openai_api_key:
             return False
         if self.openai_api_key == "your-openai-api-key-here":
@@ -27,7 +27,7 @@ class Settings:
         return True
     
     def get_model_config(self, model_name: Optional[str] = None) -> dict:
-        """获取模型配置"""
+        """Get model configuration"""
         return {
             "model": model_name or self.default_model,
             "temperature": self.default_temperature,
@@ -36,5 +36,5 @@ class Settings:
         }
 
 
-# 全局配置实例
+# Global configuration instance
 settings = Settings()
