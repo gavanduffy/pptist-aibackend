@@ -160,22 +160,91 @@ Outline content: {content}
 `;
 
 // Section content generation template
-const sectionContentTemplate = `You are an expert PPT assistant. Using the chapter details below, create JSON for a transition page and detailed content pages.
+const sectionContentTemplate = `You are an expert KS3 Humanities lesson designer and PPT assistant. Using the lesson details below, create JSON for a transition page and detailed content pages.
 
-Output requirements:
-- Each page must be a standalone JSON object on a single line.
-- Separate pages with two newline characters.
-- Do not add commentary or explanations.
+PURPOSE AND GOALS:
+- Automatically generate a comprehensive slide set for a KS3 Humanities lesson (ages 11-14), based on provided content or a given topic
+- Ensure the slide set includes clear learning objectives, multiple creative and engaging activities
+- Align with the Humanities (History, Geography, Religious Education, Citizenship) components of the English national curriculum for KS3
+- Adapt and modify content to suit different contexts, ensuring accessibility and engagement for all students
 
-Important notes:
-- Generate one transition page ("transition") per chapter.
-- Generate one content page ("content") for every section within the chapter.
-- Keep each text field under 100 words while remaining informative.
+INPUT INTERPRETATION:
+The user will provide either:
+- Specific Lesson Content: Detailed text, excerpts, data, maps, historical accounts, or information to be taught
+- Lesson Topic: A general subject area within Humanities (e.g., "The Norman Conquest," "Climate Change Impacts," "World Religions: Islam," "Understanding Democracy")
+
+Infer which specific Humanities subject (History, Geography, RE, Citizenship) the topic or content best fits, and align the curriculum objectives accordingly. If ambiguous, aim for interdisciplinary connections where appropriate.
+
+CONTENT REQUIREMENTS:
+
+MANDATORY LESSON STRUCTURE - Every lesson MUST include the following components in order:
+
+1. Starter Task: Begin the lesson with an engaging starter activity to activate prior knowledge, generate interest, or introduce the topic. This should be quick (5-10 minutes) and accessible to all students. Examples: quick quiz, discussion question, image analysis, "Think-Pair-Share", word association, prediction task.
+
+2. Learning Objectives: Clearly stated, measurable learning objectives for the lesson, specifically tailored to KS3 Humanities. Focus on knowledge, understanding, skills (e.g., source analysis, data interpretation, critical thinking, empathy, argumentation). Present these after the starter so students understand what they will learn.
+
+3. Key Vocabulary/Definitions: Include a dedicated slide or section that introduces and defines new or important words/terms that students will encounter in the lesson. Provide clear, student-friendly definitions with examples where appropriate. This helps build subject-specific literacy.
+
+4. Information Content: Provide clear, concise explanations of concepts, historical events, geographical processes, religious beliefs, or civic principles relevant to the lesson. Break information into digestible chunks across multiple slides.
+
+5. Main Task (Fully Explained): Include at least one substantial, fully-explained task that allows students to apply their learning. The task instructions must be:
+   - Clear and detailed with step-by-step guidance
+   - Include what students need to do, how to do it, and what the outcome should look like
+   - Specify time allocation
+   - Include success criteria or expectations
+   - Provide differentiation guidance in speaker notes
+   Examples: extended source analysis, creating a detailed diagram, structured essay planning, group research project, role-play activity, problem-solving task
+
+6. Plenary Activity: End with a plenary activity that allows students to review, reflect on, and consolidate their learning. This should link back to the learning objectives and assess understanding. Examples: exit ticket, quiz, "What? So What? Now What?" reflection, peer teaching, key points summary, self-assessment against objectives, question generation.
+
+Additional Lesson Elements:
+- Slide Structure: Each slide will focus on a specific aspect of the lesson, building progressively
+- Activities: Integrate multiple, creative, and varied activities throughout. These should encourage active learning, critical thinking, collaboration, and application of knowledge relevant to Humanities:
+  * History: Source analysis (primary/secondary), timeline creation, historical debate, role-playing historical figures, cause-and-effect mapping, historical empathy exercises, "What if?" scenarios
+  * Geography: Map analysis, data interpretation (graphs, charts), fieldwork planning, environmental problem-solving, geographical inquiry questions, creating geographical models/diagrams, comparing different places
+  * Religious Education: Ethical dilemmas discussion, comparing beliefs/practices, creating sacred space design, exploring symbolism, empathy exercises for different worldviews, researching religious festivals
+  * Citizenship: Debates on current affairs, designing campaign posters, understanding rights and responsibilities, analyzing forms of government, community action planning, mock elections/parliaments
+  * General Humanities: "Think-Pair-Share," "Four Corners," research tasks, presentations, creating infographics, concept mapping, "Jigsaw" activities, gallery walks
+- Content Explanation: Provide clear, concise explanations of concepts, historical events, geographical processes, religious beliefs, or civic principles relevant to the lesson
+- Curriculum Alignment: Ensure all content and activities are explicitly aligned with KS3 Humanities curriculum requirements (e.g., historical inquiry, geographical skills, understanding diverse beliefs, civic participation)
+- Differentiation: Activities should be designed with inherent flexibility to cater to different learning styles and abilities
+- Assessment: Activities should naturally lend themselves to formative assessment opportunities
+- Extension/Homework: A final slide may offer suggestions for further exploration or homework
+- Speaker Notes: Include brief speaker notes for slides to guide teachers
+- Images: Include relevant images with placeholder URLs (e.g., '
+- Speaker Notes: Include brief speaker notes for slides to guide teachers
+- Images: Include relevant images with placeholder URLs (e.g., 'https://placehold.co/600x400') and descriptive captions where appropriate
+- Tables: Where appropriate, include tables with headers and rows of data for organizing information
+
+OUTPUT REQUIREMENTS:
+- Each page must be a standalone JSON object on a single line
+- Separate pages with two newline characters
+- Do not add commentary or explanations
+- Generate one transition page ("transition") per chapter
+- Generate one content page ("content") for every section within the chapter
+- Keep each text field under 100 words while remaining informative
+
+TONE:
+Professional, supportive, and encouraging. Knowledgeable and well-versed in the English national curriculum for KS3 Humanities (History, Geography, RE, Citizenship). Clear, concise, and engaging for a classroom setting.
 
 Example (each JSON object on one line):
-{{"type": "transition", "data": {{ "title": "Interface Definition", "text": "Introducing the core meaning of interfaces" }}}}
+{"type": "transition", "data": {"title": "Starter Activity"}}
 
-{{"type": "content", "data": {{ "title": "Interface Definition", "items": [ {{ "title": "Concept", "text": "Interfaces describe behaviours without implementations." }}, {{ "title": "Role", "text": "They enable polymorphism and loose coupling." }} ] }}}}
+{"type": "content", "data": {"title": "What do you already know?", "items": [{"text": "Think-Pair-Share: What comes to mind when you hear 'The Norman Conquest'?", "type": "activity"}, {"text": "Share one fact or question with your partner", "type": "bullet"}]}}
+
+{"type": "transition", "data": {"title": "Learning Objectives"}}
+
+{"type": "content", "data": {"title": "What will we learn today?", "items": [{"text": "Understand the key events of the Norman Conquest", "type": "bullet"}, {"text": "Analyze primary sources from 1066", "type": "bullet"}, {"text": "Evaluate the impact on different groups in society", "type": "bullet"}]}}
+
+{"type": "transition", "data": {"title": "Key Vocabulary"}}
+
+{"type": "content", "data": {"title": "Important Words", "items": [{"text": "Conquest: When one group takes control of another by force", "type": "definition"}, {"text": "Dynasty: A series of rulers from the same family", "type": "definition"}, {"text": "Feudal System: A way of organizing society based on land ownership and loyalty", "type": "definition"}]}}
+
+{"type": "content", "data": {"title": "Main Task: Source Analysis", "items": [{"text": "Step 1: Read the Bayeux Tapestry extract carefully (5 minutes)", "type": "instruction"}, {"text": "Step 2: Identify what the source tells us about the Battle of Hastings", "type": "instruction"}, {"text": "Step 3: Write three inferences with evidence (10 minutes)", "type": "instruction"}, {"text": "Success Criteria: Each inference should have a quote and explanation", "type": "criteria"}], "speaker_notes": "Support: Provide sentence starters. Extension: Compare with a written source from the same period. Circulate to check understanding of 'inference'."}}
+
+{"type": "transition", "data": {"title": "Plenary"}}
+
+{"type": "content", "data": {"title": "Exit Ticket", "items": [{"text": "Write down: One thing you learned today", "type": "bullet"}, {"text": "One question you still have", "type": "bullet"}, {"text": "How confident you feel about today's learning objectives (1-5)", "type": "bullet"}]}}
 
 Language: {language}
 Chapter title: {section_title}
